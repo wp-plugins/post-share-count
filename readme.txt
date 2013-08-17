@@ -10,6 +10,11 @@ License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 Show twitter share count.
 
+== Description ==
+
+Show twitter share count.
+In future I want to add facebook counter.
+
 == Installation ==
 
 1. Upload `post-share-count.zip` and extract to the `/wp-content/plugins/` directory

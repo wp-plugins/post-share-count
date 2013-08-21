@@ -2,8 +2,8 @@
 /*
 Plugin Name: Post Share Count
 Plugin URI: http://html-and-cms.com/plugins/post-share-count/
-Description: Show twitter share count.
-Version: 0.1
+Description: Show twitter and facebook share count.
+Version: 0.2
 Author: zviryatko
 Author URI: http://makeyoulivebetter.org.ua/
 License: GPLv2 or later
@@ -41,20 +41,47 @@ License URI: http://www.gnu.org/licenses/gpl-2.0.html
  *
  * @since 0.1
  *
- * @param string $before Optional. Content to prepend to the title.
- * @param string $after Optional. Content to append to the title.
- * @param bool $echo Optional, default to true.Whether to display or return.
+ * @param array $args
  * @return void|string Zero on no . String if $echo parameter is false.
  */
-function the_post_share_count( $before = '', $after = '', $echo = TRUE ) {
-	$count = get_the_post_share_count();
+function the_post_share_count( $args = array() ) {
+    $default_args = array(
+        'post'            => 0,
+        'echo'            => true,
+        'before_twitter'  => '',
+        'after_twitter'   => '',
+        'before_facebook' => '',
+        'after_facebook'  => '',
+    );
+    if( !is_array($args) ) {
+        $r                     = array();
+        $func_args             = func_get_args();
+        $r[ 'before_twitter' ] = array_shift( $func_args );
+        $r[ 'after_twitter' ]  = array_shift( $func_args );
+        $args                  = $r;
+    }
+    $args = wp_parse_args( $args, $default_args );
 
-	$count = $before . $count . $after;
+    /**
+     * @var $before_twitter string
+     * @var $after_twitter string
+     * @var $before_facebook string
+     * @var $after_facebook string
+     * @var $echo bool
+     * @var $post int|WP_Post
+     */
+    extract( $args );
+	$count  = get_the_post_share_count( $post );
+    $output = '';
+    if( isset( $count[ 'twitter' ] ) )
+        $output .= $before_twitter . $count[ 'twitter' ] . $after_twitter;
+    if( isset( $count[ 'facebook' ] ) )
+        $output .= $before_facebook . $count[ 'facebook' ] . $after_facebook;
 
 	if ( $echo )
-		echo $count;
+		echo $output;
 	else
-		return $count;
+		return $output;
 }
 
 /**
@@ -64,20 +91,19 @@ function the_post_share_count( $before = '', $after = '', $echo = TRUE ) {
  *
  * @since 0.1
  *
- * @param int|object $post Optional. Post ID or object.
- * @return mixed|void
+ * @param int|WP_Post $post Optional. Post ID or WP_Post object.
+ * @return array
  */
 function get_the_post_share_count( $post = 0 ) {
 	$post  = get_post( $post );
 	$id    = isset( $post->ID ) ? $post->ID : 0;
-	$count = isset( $post->post_share_count ) ? $post->post_share_count : 0;
+	$count = (!isset( $post->post_share_count ) || !is_array( $post->post_share_count ) ) ? array() : $post->post_share_count;
 
 	if ( !isset( $post->post_share_last_sync ) || $post->post_share_last_sync < ( time() - 60 * 60 ) ) {
-		if ( FALSE !== ( $updated_count = post_share_count_sync_post( $id ) ) ) {
-			update_post_meta( $id, 'post_share_count', $updated_count );
-			update_post_meta( $id, 'post_share_last_sync', time() );
-			$count = $updated_count;
-		}
+		$updated_count = post_share_count_sync_post( $id );
+        update_post_meta( $id, 'post_share_count', $updated_count );
+        update_post_meta( $id, 'post_share_last_sync', time() );
+        $count = $updated_count;
 	}
 
 	return apply_filters( 'the_post_share_count', $count, $id );
@@ -89,15 +115,50 @@ function get_the_post_share_count( $post = 0 ) {
  * @since 0.1
  *
  * @param int|object $post Optional. Post ID or object.
- * @return bool|int Return false if can't get post count and integer if can.
+ * @return array Return array of counts keyed by social network name
  */
 function post_share_count_sync_post( $post = 0 ) {
-	$url      = get_permalink( $post );
-	$response = wp_remote_get( "https://cdn.api.twitter.com/1/urls/count.json?url=$url" );
-	if ( !is_wp_error( $response ) && isset( $response[ 'body' ] ) ) {
-		$data = json_decode( $response[ 'body' ] );
-		if ( !is_null( $data ) && isset( $data->count ) )
-			return $data->count;
-	}
-	return FALSE;
+	$url = get_permalink( $post );
+	return array(
+        'twitter'  => get_twitter_post_share_count( $url ),
+        'facebook' => get_facebook_post_share_count( $url ),
+    );
+}
+
+/**
+ * Get twitter share count
+ *
+ * @since 0.2
+ *
+ * @param string $url Shared post permalink
+ *
+ * @return int
+ */
+function get_twitter_post_share_count($url) {
+    $response = wp_remote_get( "https://cdn.api.twitter.com/1/urls/count.json?url=$url" );
+    if ( !is_wp_error( $response ) && isset( $response[ 'body' ] ) ) {
+        $data = json_decode( $response[ 'body' ] );
+        if ( !is_null( $data ) && isset( $data->count ) )
+            return $data->count;
+    }
+    return 0;
+}
+
+/**
+ * Get facebook share count
+ *
+ * @since 0.2
+ *
+ * @param string $url Shared post permalink
+ *
+ * @return int
+ */
+function get_facebook_post_share_count($url) {
+    $response = wp_remote_get( "https://graph.facebook.com/?id=$url" );
+    if ( !is_wp_error( $response ) && isset( $response[ 'body' ] ) ) {
+        $data = json_decode( $response[ 'body' ] );
+        if ( !is_null( $data ) && isset( $data->shares ) )
+            return $data->shares;
+    }
+    return 0;
 }

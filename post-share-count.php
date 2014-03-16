@@ -3,7 +3,7 @@
 Plugin Name: Post Share Count
 Plugin URI: http://html-and-cms.com/plugins/post-share-count/
 Description: Show twitter and facebook share count.
-Version: 0.3
+Version: 0.4
 Author: zviryatko
 Author URI: http://makeyoulivebetter.org.ua/
 License: GPLv2 or later

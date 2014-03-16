@@ -52,31 +52,37 @@ function post_share_count_get_services() {
     $built_in = array(
         'total'      => array(
             'title'  => __( 'Total', 'post_share_count' ),
-            'before' => '<span class="share-link"><span class="genericon-share">',
-            'after'  => '</span></span>',
+            'before' => '<span class="share-link"><span class="genericon genericon-share"></span>',
+            'after'  => '</span>',
         ),
         'twitter'    => array(
             'title'    => __( 'Twitter' ),
             'callback' => 'get_twitter_post_share_count',
-            'before'   => '<span class="share-link"><a class="genericon-twitter" href="https://twitter.com/intent/tweet?text=%title%&url=%url%" rel="nofollow" target="_blank">',
+            'before'   => '<span class="share-link"><a href="https://twitter.com/intent/tweet?text=%title%&url=%url%" rel="nofollow" target="_blank"><span class="genericon genericon-twitter"></span> ',
             'after'    => '</a></span>',
         ),
         'facebook'   => array(
             'title'    => __( 'Facebook' ),
             'callback' => 'get_facebook_post_share_count',
-            'before'   => '<span class="share-link"><a class="genericon-facebook" href="https://www.facebook.com/sharer/sharer.php?u=%url%" rel="nofollow" target="_blank">',
+            'before'   => '<span class="share-link"><a href="https://www.facebook.com/sharer/sharer.php?u=%url%" rel="nofollow" target="_blank"><span class="genericon genericon-facebook"></span> ',
             'after'    => '</a></span>',
         ),
         'pinterest'  => array(
             'title'    => __( 'Pinterest' ),
             'callback' => 'get_pinterest_post_share_count',
-            'before'   => '<span class="share-link"><a class="genericon-pinterest" href="http://pinterest.com/pin/create/button/?description=%title%&url=%url%&media=%thumb%" rel="nofollow" target="_blank">',
+            'before'   => '<span class="share-link"><a href="http://pinterest.com/pin/create/button/?description=%title%&url=%url%&media=%thumb%" rel="nofollow" target="_blank"><span class="genericon genericon-pinterest"></span> ',
             'after'    => '</a></span>',
         ),
         'googleplus' => array(
             'title'    => __( 'Google Plus' ),
             'callback' => 'get_googleplus_post_share_count',
-            'before'   => '<span class="share-link"><a class="genericon-googleplus" href="https://plus.google.com/share?url=%url%" rel="nofollow" target="_blank">',
+            'before'   => '<span class="share-link"><a href="https://plus.google.com/share?url=%url%" rel="nofollow" target="_blank"><span class="genericon genericon-googleplus"></span> ',
+            'after'    => '</a></span>',
+        ),
+        'linkedin' => array(
+            'title'    => __( 'LinkedIn' ),
+            'callback' => 'get_linkedin_post_share_count',
+            'before'   => '<span class="share-link"><a href="https://www.linkedin.com/shareArticle?mini=true&url=%url%&title=%title%" rel="nofollow" target="_blank"><span class="genericon genericon-linkedin"></span> ',
             'after'    => '</a></span>',
         ),
     );
@@ -101,6 +107,8 @@ function the_post_share_count( $args = array() ) {
         'before'     => '',
         'after'      => '',
         'show_total' => false,
+        'max_sync'   => 1,
+        'time'       => 3600,
     );
 
     // Set default params `{$service}_before` and `{$service}_after`
@@ -111,22 +119,28 @@ function the_post_share_count( $args = array() ) {
 
     $args     = wp_parse_args( $args, $default_args );
     $post     = get_post( $args['post'] );
-    $counters = get_the_post_share_count( $args['post'], $services );
-    $output   = '';
-
-    if ( is_string( $args['show_only'] ) && isset( $counters[$args['show_only']] ) ) {
-        $key = $args['show_only'];
-        $output .= $args["before_{$key}"] . $counters[$key] . $args["after_{$key}"];
-    }
-    else {
-        foreach ( $counters as $key => $count ) {
-            if ( is_array( $args['show_only'] ) && ! in_array( $key, $args['show_only'] )
-                || $key == 'total' && ! $args['show_total']
-            )
-                continue;
-            $output .= $args["before_{$key}"] . $count . $args["after_{$key}"];
+    // filter services for showing, for getting counters only for them
+    if ( $args['show_only'] ) {
+        // if show_only is string convert to array with one value
+        if ( is_string( $args['show_only'] ) && array_key_exists($args['show_only'], $services) ) {
+            $args['show_only'] = array($args['show_only']);
+        }
+        if ( is_array( $args['show_only'] ) ) {
+            foreach ( $services as $key => $data ) {
+                if ( ! in_array($key, $args['show_only']) ) {
+                    unset( $services[$key] );
+                }
+            }
         }
     }
+    $counters = get_the_post_share_count( $args['post'], $services, $args['time'], $args['max_sync'] );
+    $output   = '';
+
+    foreach ( $counters as $key => $count ) {
+        if ( ! ( $key == 'total' && ! $args['show_total'] ) )
+        $output .= $args["before_{$key}"] . $count . $args["after_{$key}"];
+    }
+
     $search  = array( '%title%', '%url%', '%thumb%' );
     $replace = array(
         urlencode( get_the_title( $args['post'] ) ),
@@ -149,17 +163,26 @@ function the_post_share_count( $args = array() ) {
  * @since 0.1
  *
  * @param int|WP_Post $post Optional. Post ID or WP_Post object.
- * @param array $services Array of services key by service machine name, contain params array.
+ * @param array $services Array of services key by service machine name,
+ *  contain params array.
+ * @param int $time Updating interval in seconds, default: 1 hour
+ * @param int $max_sync The maximum number of synchronizations posts per visit.
+ *  If anyone goes to archive page after a long time, plugin send request
+ *  to each service for each post. So if you show only one social counter for
+ *  10 posts set param 5, but if you show 4 counter for 10 posts i advice to
+ *  set param to 1, 'cause 10*4 request it a very loooong.
+ *
  * @return array
  */
-function get_the_post_share_count( $post = 0, $services ) {
+function get_the_post_share_count( $post = 0, $services, $time = 3600, $max_sync = 1 ) {
+    static $updated = 0;
     $post           = get_post( $post );
     $id             = isset( $post->ID ) ? $post->ID : 0;
     $count['total'] = ( isset( $post->post_share_total_count ) ) ? $post->post_share_total_count : 0;
     if ( isset( $post->post_share_count ) && is_array( $post->post_share_count ) )
         $count = array_merge( $count, $post->post_share_count );
 
-    if ( ! isset( $post->post_share_last_sync ) || $post->post_share_last_sync < ( time() - 60 * 60 ) ) {
+    if ( ( ! isset( $post->post_share_last_sync ) || $post->post_share_last_sync < ( time() - $time ) ) && $updated < $max_sync) {
         $updated_counters = post_share_count_sync_post( $id, $services );
         update_post_meta( $id, 'post_share_last_sync', time() );
         if ( ! empty( $updated_counters ) ) {
@@ -170,6 +193,7 @@ function get_the_post_share_count( $post = 0, $services ) {
             }
             $count = $updated_counters;
         }
+        $updated++;
     }
 
     return apply_filters( 'the_post_share_count', $count, $id );
@@ -282,6 +306,28 @@ function get_googleplus_post_share_count( $url ) {
             if ( isset( $data->result->metadata->globalCounts->count ) )
                 return $data->result->metadata->globalCounts->count;
         }
+    }
+
+    return 0;
+}
+
+/**
+ * Get linkedin share count
+ *
+ * @since 0.4
+ *
+ * @param string $url Shared post permalink
+ *
+ * @see http://developer.linkedin.com/documents/share-linkedin
+ *
+ * @return int
+ */
+function get_linkedin_post_share_count( $url ) {
+    $response = wp_remote_get( "http://www.linkedin.com/countserv/count/share?url=$url&format=json" );
+    if ( ! is_wp_error( $response ) && isset( $response['body'] ) ) {
+        $data = json_decode( $response['body'] );
+        if ( ! is_null( $data ) && isset( $data->count ) )
+            return $data->count;
     }
 
     return 0;

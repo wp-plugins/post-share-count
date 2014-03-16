@@ -1,10 +1,10 @@
 === Plugin Name ===
 Contributors: zviryatko
-Donate link: http://makeyoulivebetter.org.ua/buy-beer
+Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=sanya%2edavyskiba%40gmail%2ecom&lc=UA&item_name=MakeYouLiveBetter&item_number=post%2dshare%2dcount&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted
 Tags: twitter, share, counter
 Requires at least: 3.0
 Tested up to: 3.6
-Stable tag: 0.2
+Stable tag: 0.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -28,42 +28,48 @@ In feature I want:
 
 = How to add html wrapper or some css class to counter and/or display counter as link? =
 
-Use array as argument with keys `before_` and `after_` prefix and social link name, here is example with using twitter and facebook api:
+Use array as argument with keys `before_` and `after_` prefix and social link name, here is example how to add @via parameter twitter sharing link:
 `
 <?php
 $share_args = array(
-    'before_twitter' => '<span class="twitter-share-link"><a href="https://twitter.com/intent/tweet?text=' . urlencode(get_the_title()) . '&url=' . urlencode(get_permalink()) . '" rel="nofollow" target="_blank">',
+    'before_twitter' => '<span class="share-link"><a href="https://twitter.com/intent/tweet?text=' . urlencode(get_the_title()) . '&url=' . urlencode(get_permalink()) . '&via=' . urlencode('your-twitter-name') . '" rel="nofollow" target="_blank"><span class="genericon genericon-twitter"></span> ',
     'after_twitter' => '</a></span>',
-    'before_facebook' => '<span class="facebook-share-link"><a href="https://www.facebook.com/sharer/sharer.php?u=' .  urlencode(get_permalink()) . '" target="_blank">',
-    'after_facebook' => '</a></span>'
 );
 the_post_share_count( $share_args );
 ?>
 `
-
-= How to add beautiful image to share link with counter? =
-
-Use CSS `background-image` property for it.
-Or if you are using twentythirteen [child theme](http://codex.wordpress.org/Child_Themes "How to add child theme")
- put code in previous example to you template file into the mail loop and add this code to your style.css:
+Also you can add changes to `functions.php`:
+`function your_theme_post_share_count_services( $services ) {
+    $services['twitter']['before'] = '<span class="share-link"><a href="https://twitter.com/intent/tweet?text=%title%&url=%url%&via=' . urlencode('your-twitter-name') . '" rel="nofollow" target="_blank"><span class="genericon genericon-twitter"></span> ';
+    return $services;
+}
+add_filter('post_share_count_services', 'your_theme_post_share_count_services');
 `
-@import url("../twentythirteen/style.css");
+= How to limit list of social networks? (or "I want only twitter counter") =
 
-.twitter-share-link a:before,
-.facebook-share-link a:before {
-	display: inline-block;
-	font: 16px/1 Genericons;
-	vertical-align: text-bottom;
-}
-.facebook-share-link a:before {
-	content: '\f202'; /* twitter icon code in the Genericons icon font */
-}
-.facebook-share-link a:before {
-	content: '\f204'; /* facebook icon code in the Genericons icon font */
-}
+Add `show_only` parameter:
+`<?php
+$args = array('show_only' => array( 'twitter', 'facebook' ));
+the_post_share_count($args);
+?>
 `
+Also you can do it in `functions.php`:
+`function your_theme_post_share_count_services( $services ) {
+    unset( $services['facebook'] );
+    unset( $services['pinterest'] );
+    unset( $services['googleplus'] );
+    unset( $services['linkedin'] );
+    return $services;
+}
+add_filter('post_share_count_services', 'your_theme_post_share_count_services');
 
 == Changelog ==
+
+= 0.4 =
+* Added LinkedIn counter
+* Added genericon css classes for icon font support
+* Added parameters `time` and `max_sync`, see `get_the_post_share_count()` function for details
+* Change donate link to PayPal
 
 = 0.2 =
 * Added facebook counter

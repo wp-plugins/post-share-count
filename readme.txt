@@ -12,11 +12,7 @@ Show twitter and facebook share count.
 
 == Description ==
 
-Show twitter and facebook share count.
-In feature I want:
-* create API for easy add new counters
-* add ability to show only needed counters
-* show statistics on dashboard
+Show twitter and facebook share count. Send your feature request.
 
 == Installation ==
 
@@ -62,6 +58,7 @@ Also you can do it in `functions.php`:
     return $services;
 }
 add_filter('post_share_count_services', 'your_theme_post_share_count_services');
+`
 
 == Changelog ==
 
@@ -74,3 +71,8 @@ add_filter('post_share_count_services', 'your_theme_post_share_count_services');
 = 0.2 =
 * Added facebook counter
 * Changed `the_post_share_count` arguments, now one arg as array, see faq.
+
+== Upgrade Notice ==
+
+= 0.4 =
+Add param `'show_only' => array('twitter', 'facebook')` because now 5 counters available.

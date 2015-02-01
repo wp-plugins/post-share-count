@@ -3,7 +3,7 @@
 Plugin Name: Post Share Count
 Plugin URI: http://html-and-cms.com/plugins/post-share-count/
 Description: Show twitter and facebook share count.
-Version: 0.5
+Version: 0.5.1
 Author: zviryatko
 Author URI: http://makeyoulivebetter.org.ua/
 License: GPLv2 or later
@@ -271,7 +271,7 @@ function get_facebook_post_share_count( $url ) {
  * @return int
  */
 function get_pinterest_post_share_count( $url ) {
-    $response = wp_remote_get( "http://api.pinterest.com/v1/urls/count.json?callback=&url=$url" );
+    $response = wp_remote_get( "http://api.pinterest.com/v1/urls/count.json?callback=receivecount&url=$url" );
     if ( ! is_wp_error( $response ) && isset( $response['body'] ) ) {
         $data = json_decode( substr( $response['body'], 13, - 1 ) );
         if ( ! is_null( $data ) && isset( $data->count ) )

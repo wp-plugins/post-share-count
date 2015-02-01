@@ -4,7 +4,7 @@ Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=sanya
 Tags: twitter, share, counter
 Requires at least: 3.0
 Tested up to: 3.6
-Stable tag: 0.4
+Stable tag: 0.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -61,6 +61,9 @@ add_filter('post_share_count_services', 'your_theme_post_share_count_services');
 `
 
 == Changelog ==
+
+= 0.5 =
+* Fix pinterest counter
 
 = 0.4 =
 * Added LinkedIn counter
